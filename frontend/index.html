@@ -58,11 +58,17 @@
                     <input type="text" id="record-id" placeholder="e.g., REC001">
                 </div>
                 <div class="form-group">
-                    <label for="record-hash">Record Hash:</label>
-                    <input type="text" id="record-hash" placeholder="e.g., 0x1234...abcd">
-                    <small>Hash of your medical record file (stored off-chain)</small>
+                    <label for="record-file">Medical Record File:</label>
+                    <input type="file" id="record-file" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png">
+                    <small>Upload your medical record document (PDF, DOC, TXT, or Image). File will be stored securely in cloud storage.</small>
                 </div>
-                <button id="upload-record" class="btn btn-action">Upload Record</button>
+                <div id="file-info" style="display: none; padding: 10px; background: #f0f0f0; border-radius: 6px; margin-bottom: 10px;">
+                    <strong>Selected File:</strong> <span id="file-name"></span><br>
+                    <strong>Size:</strong> <span id="file-size"></span><br>
+                    <strong>Hash:</strong> <span id="file-hash" style="font-family: monospace; font-size: 0.85rem;"></span>
+                </div>
+                <button id="upload-record" class="btn btn-action">Upload to Blockchain & Cloud</button>
+                <div id="upload-result" style="margin-top: 15px;"></div>
             </div>
 
             <!-- Grant Access -->
@@ -103,6 +109,12 @@
                 </div>
                 <button id="view-record" class="btn btn-action">View Record</button>
                 <div id="record-info" class="result-box"></div>
+                <div id="record-file-display" style="margin-top: 15px; display: none;">
+                    <h4 style="margin-bottom: 10px;">📁 Cloud Storage</h4>
+                    <div id="cloud-file-info" style="padding: 15px; background: #e3f2fd; border-radius: 6px; border-left: 4px solid #2196f3;">
+                        <div id="file-download-section"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -135,6 +147,12 @@
                 </div>
                 <button id="doctor-view-record" class="btn btn-action">View Record</button>
                 <div id="doctor-record-info" class="result-box"></div>
+                <div id="doctor-file-display" style="margin-top: 15px; display: none;">
+                    <h4 style="margin-bottom: 10px;">📁 Cloud Storage</h4>
+                    <div id="doctor-cloud-file-info" style="padding: 15px; background: #e3f2fd; border-radius: 6px; border-left: 4px solid #2196f3;">
+                        <div id="doctor-file-download-section"></div>
+                    </div>
+                </div>
             </div>
         </div>
 

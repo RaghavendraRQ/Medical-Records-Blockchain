@@ -213,22 +213,58 @@ function isMetaMaskAvailable() {
 
 // Setup event listeners
 function setupEventListeners() {
-    connectWalletBtn.addEventListener('click', connectWallet);
-    switchNetworkBtn.addEventListener('click', switchToSepolia);
+    if (connectWalletBtn) {
+        connectWalletBtn.addEventListener('click', connectWallet);
+    }
+    if (switchNetworkBtn) {
+        switchNetworkBtn.addEventListener('click', switchToSepolia);
+    }
     
     // Role switching
-    rolePatientBtn.addEventListener('click', () => switchRole('patient'));
-    roleDoctorBtn.addEventListener('click', () => switchRole('doctor'));
+    if (rolePatientBtn) {
+        rolePatientBtn.addEventListener('click', () => switchRole('patient'));
+    }
+    if (roleDoctorBtn) {
+        roleDoctorBtn.addEventListener('click', () => switchRole('doctor'));
+    }
+    
+    // File input handler
+    const fileInput = document.getElementById('record-file');
+    if (fileInput) {
+        fileInput.addEventListener('change', handleFileSelect);
+    }
     
     // Patient functions
-    document.getElementById('upload-record').addEventListener('click', uploadRecord);
-    document.getElementById('grant-access').addEventListener('click', grantAccess);
-    document.getElementById('revoke-access').addEventListener('click', revokeAccess);
-    document.getElementById('view-record').addEventListener('click', viewRecord);
+    const uploadRecordBtn = document.getElementById('upload-record');
+    if (uploadRecordBtn) {
+        uploadRecordBtn.addEventListener('click', uploadRecord);
+    }
+    
+    const grantAccessBtn = document.getElementById('grant-access');
+    if (grantAccessBtn) {
+        grantAccessBtn.addEventListener('click', grantAccess);
+    }
+    
+    const revokeAccessBtn = document.getElementById('revoke-access');
+    if (revokeAccessBtn) {
+        revokeAccessBtn.addEventListener('click', revokeAccess);
+    }
+    
+    const viewRecordBtn = document.getElementById('view-record');
+    if (viewRecordBtn) {
+        viewRecordBtn.addEventListener('click', viewRecord);
+    }
     
     // Doctor functions
-    document.getElementById('check-access').addEventListener('click', checkAccess);
-    document.getElementById('doctor-view-record').addEventListener('click', doctorViewRecord);
+    const checkAccessBtn = document.getElementById('check-access');
+    if (checkAccessBtn) {
+        checkAccessBtn.addEventListener('click', checkAccess);
+    }
+    
+    const doctorViewRecordBtn = document.getElementById('doctor-view-record');
+    if (doctorViewRecordBtn) {
+        doctorViewRecordBtn.addEventListener('click', doctorViewRecord);
+    }
     
     // Listen for account changes
     if (isMetaMaskAvailable()) {
@@ -470,6 +506,112 @@ function switchRole(role) {
     }
 }
 
+// File handling functions
+async function handleFileSelect(event) {
+    if (!event || !event.target) return;
+    
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    const fileInfoDiv = document.getElementById('file-info');
+    const fileNameSpan = document.getElementById('file-name');
+    const fileSizeSpan = document.getElementById('file-size');
+    const fileHashSpan = document.getElementById('file-hash');
+    
+    // Check if elements exist
+    if (!fileInfoDiv || !fileNameSpan || !fileSizeSpan || !fileHashSpan) {
+        console.error('File info elements not found');
+        return;
+    }
+    
+    // Show file info
+    fileNameSpan.textContent = file.name;
+    fileSizeSpan.textContent = formatFileSize(file.size);
+    fileHashSpan.textContent = 'Calculating hash...';
+    fileInfoDiv.style.display = 'block';
+    
+    // Calculate file hash
+    try {
+        const hash = await calculateFileHash(file);
+        fileHashSpan.textContent = hash;
+        fileHashSpan.style.wordBreak = 'break-all';
+        fileHashSpan.style.fontSize = '0.85rem';
+    } catch (error) {
+        console.error('Error calculating hash:', error);
+        fileHashSpan.textContent = 'Error calculating hash';
+        fileHashSpan.style.color = '#dc3545';
+    }
+}
+
+// Calculate SHA-256 hash of file
+async function calculateFileHash(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = '0x' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+}
+
+// Format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Store file in localStorage (simulating cloud storage)
+function storeFileInCloud(recordId, file, hash) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const fileData = {
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                hash: hash,
+                data: e.target.result, // Base64 encoded file
+                uploadedAt: new Date().toISOString(),
+                owner: currentAccount
+            };
+            
+            // Store in localStorage with record ID as key
+            const storageKey = `medical_record_${recordId}`;
+            localStorage.setItem(storageKey, JSON.stringify(fileData));
+            
+            console.log('File stored in cloud (localStorage):', storageKey);
+            resolve();
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// Retrieve file from localStorage (simulating cloud storage)
+function retrieveFileFromCloud(recordId) {
+    const storageKey = `medical_record_${recordId}`;
+    const fileDataStr = localStorage.getItem(storageKey);
+    if (!fileDataStr) return null;
+    
+    try {
+        return JSON.parse(fileDataStr);
+    } catch (error) {
+        console.error('Error parsing file data:', error);
+        return null;
+    }
+}
+
+// Download file from cloud
+function downloadFileFromCloud(fileData, recordId) {
+    const link = document.createElement('a');
+    link.href = fileData.data;
+    link.download = fileData.name || `medical_record_${recordId}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 // Upload record (Patient)
 async function uploadRecord() {
     if (!contract) {
@@ -477,25 +619,111 @@ async function uploadRecord() {
         return;
     }
     
-    const recordId = document.getElementById('record-id').value.trim();
-    const recordHash = document.getElementById('record-hash').value.trim();
+    const recordIdInput = document.getElementById('record-id');
+    const fileInput = document.getElementById('record-file');
+    console.log(recordIdInput, fileInput);
+
     
-    if (!recordId || !recordHash) {
-        showStatus('Please fill all fields!', 'error');
+    if (!recordIdInput) {
+        showStatus('Record ID input not found. Please refresh the page.', 'error');
+        console.error('record-id element not found');
+        return;
+    }
+    
+    if (!fileInput) {
+        showStatus('File input not found. Please refresh the page.', 'error');
+        console.error('record-file element not found');
+        return;
+    }
+    
+    // Safely get values with error handling
+    let recordId;
+    let file;
+    
+    try {
+        // Safely access value property
+        if (recordIdInput && typeof recordIdInput.value !== 'undefined') {
+            recordId = recordIdInput.value.trim();
+        } else {
+            recordId = '';
+        }
+    } catch (e) {
+        console.error('Error reading record ID:', e);
+        showStatus('Error reading record ID. Please refresh the page.', 'error');
+        return;
+    }
+    
+    if (!recordId) {
+        showStatus('Please enter record ID!', 'error');
         return;
     }
     
     try {
-        showStatus('Uploading record...', 'pending');
-        const tx = await contract.uploadRecord(recordId, recordHash);
+        file = fileInput.files && fileInput.files.length > 0 ? fileInput.files[0] : null;
+    } catch (e) {
+        console.error('Error reading file:', e);
+        showStatus('Error reading file. Please refresh the page.', 'error');
+        return;
+    }
+    
+    if (!file) {
+        showStatus('Please select a file to upload!', 'error');
+        return;
+    }
+    
+    try {
+        showStatus('Calculating file hash...', 'pending');
+        
+        // Calculate hash
+        const fileHash = await calculateFileHash(file);
+        
+        // Display hash in the file info section
+        const fileHashSpan = document.getElementById('file-hash');
+        if (fileHashSpan) {
+            fileHashSpan.textContent = fileHash;
+        }
+        
+        showStatus('Uploading file to cloud storage...', 'pending');
+        
+        // Store file in localStorage (simulating cloud)
+        await storeFileInCloud(recordId, file, fileHash);
+        
+        showStatus('Uploading record to blockchain...', 'pending');
+        
+        // Upload to blockchain
+        const tx = await contract.uploadRecord(recordId, fileHash);
         showStatus('Transaction submitted. Waiting for confirmation...', 'pending');
         
-        await tx.wait();
-        showStatus('Record uploaded successfully!', 'success');
+        const receipt = await tx.wait();
         
-        // Clear form
-        document.getElementById('record-id').value = '';
-        document.getElementById('record-hash').value = '';
+        // Show success message with hash
+        showStatus('Record uploaded successfully! File stored in cloud and metadata on blockchain.', 'success');
+        
+        // Display hash as output for later use
+        const uploadResultDiv = document.getElementById('upload-result');
+        if (uploadResultDiv) {
+            uploadResultDiv.className = 'result-box show success';
+            uploadResultDiv.innerHTML = `
+                <strong>Upload Complete</strong><br>
+                <strong>Record ID:</strong> ${recordId}<br>
+                <strong>File Hash:</strong> <code style="background: #f0f0f0; padding: 4px 8px; border-radius: 3px; font-family: monospace; word-break: break-all;">${fileHash}</code><br>
+                <strong>Transaction Hash:</strong> <code style="background: #f0f0f0; padding: 4px 8px; border-radius: 3px; font-family: monospace; word-break: break-all;">${receipt.transactionHash}</code><br>
+                <strong>Etherscan:</strong> <a href="https://sepolia.etherscan.io/tx/${receipt.transactionHash}" target="_blank" style="color: #667eea;">View Transaction</a><br>
+                <small style="display: block; margin-top: 10px; color: #666;">
+                    <strong>Save this file hash</strong> - It's stored on the blockchain and can be used to verify file integrity later.
+                </small>
+            `;
+        }
+        
+        // Clear form after a delay (to show results)
+        setTimeout(() => {
+            recordIdInput.value = '';
+            fileInput.value = '';
+            const fileInfoDiv = document.getElementById('file-info');
+            if (fileInfoDiv) {
+                fileInfoDiv.style.display = 'none';
+            }
+        }, 2000); // Clear after 2 seconds so user can see the hash
         
     } catch (error) {
         console.error('Error uploading record:', error);
@@ -606,6 +834,7 @@ async function viewRecord() {
                 <strong>Record Owner:</strong> ${recordInfo.owner}<br>
                 <strong>Your Address:</strong> ${currentAccount}
             `;
+            document.getElementById('record-file-display').style.display = 'none';
             return;
         }
         
@@ -625,13 +854,48 @@ async function viewRecord() {
             <strong>Uploaded:</strong> ${timestamp}
         `;
         
+        // Retrieve file from cloud storage
+        const fileData = retrieveFileFromCloud(recordId);
+        const fileDisplay = document.getElementById('record-file-display');
+        const downloadSection = document.getElementById('file-download-section');
+        
+        if (fileData) {
+            fileDisplay.style.display = 'block';
+            const uploadedDate = new Date(fileData.uploadedAt).toLocaleString();
+            downloadSection.innerHTML = `
+                <div style="margin-bottom: 10px;">
+                    <strong>📄 File:</strong> ${fileData.name}<br>
+                    <strong>📦 Size:</strong> ${formatFileSize(fileData.size)}<br>
+                    <strong>🕒 Uploaded to Cloud:</strong> ${uploadedDate}<br>
+                    <strong>☁️ Storage:</strong> Secure Cloud Storage
+                </div>
+                <button onclick="downloadPatientFile('${recordId}')" class="btn btn-action" style="margin-top: 10px;">
+                    📥 Download File from Cloud
+                </button>
+            `;
+        } else {
+            fileDisplay.style.display = 'none';
+        }
+        
     } catch (error) {
         console.error('Error viewing record:', error);
         const resultBox = document.getElementById('record-info');
         resultBox.className = 'result-box show error';
         resultBox.textContent = 'Error: ' + (error.reason || error.message);
+        document.getElementById('record-file-display').style.display = 'none';
     }
 }
+
+// Download function for Patient (needs to be global)
+window.downloadPatientFile = function(recordId) {
+    const fileData = retrieveFileFromCloud(recordId);
+    if (fileData) {
+        downloadFileFromCloud(fileData, recordId);
+        showStatus('File downloaded from cloud storage!', 'success');
+    } else {
+        showStatus('File not found in cloud storage.', 'error');
+    }
+};
 
 // Check access (Doctor)
 async function checkAccess() {
@@ -704,6 +968,7 @@ async function doctorViewRecord() {
                 <strong>Your Address:</strong> ${currentAccount}<br><br>
                 <em>Please request access from the record owner.</em>
             `;
+            document.getElementById('doctor-file-display').style.display = 'none';
             return;
         }
         
@@ -726,13 +991,48 @@ async function doctorViewRecord() {
             <strong>Uploaded:</strong> ${timestamp}
         `;
         
+        // Retrieve file from cloud storage
+        const fileData = retrieveFileFromCloud(recordId);
+        const fileDisplay = document.getElementById('doctor-file-display');
+        const downloadSection = document.getElementById('doctor-file-download-section');
+        
+        if (fileData) {
+            fileDisplay.style.display = 'block';
+            const uploadedDate = new Date(fileData.uploadedAt).toLocaleString();
+            downloadSection.innerHTML = `
+                <div style="margin-bottom: 10px;">
+                    <strong>📄 File:</strong> ${fileData.name}<br>
+                    <strong>📦 Size:</strong> ${formatFileSize(fileData.size)}<br>
+                    <strong>🕒 Uploaded to Cloud:</strong> ${uploadedDate}<br>
+                    <strong>☁️ Storage:</strong> Secure Cloud Storage
+                </div>
+                <button onclick="downloadDoctorFile('${recordId}')" class="btn btn-action" style="margin-top: 10px;">
+                    📥 Download File from Cloud
+                </button>
+            `;
+        } else {
+            fileDisplay.style.display = 'none';
+        }
+        
     } catch (error) {
         console.error('Error viewing record:', error);
         const resultBox = document.getElementById('doctor-record-info');
         resultBox.className = 'result-box show error';
         resultBox.textContent = 'Error: ' + (error.reason || error.message);
+        document.getElementById('doctor-file-display').style.display = 'none';
     }
 }
+
+// Download function for Doctor (needs to be global)
+window.downloadDoctorFile = function(recordId) {
+    const fileData = retrieveFileFromCloud(recordId);
+    if (fileData) {
+        downloadFileFromCloud(fileData, recordId);
+        showStatus('File downloaded from cloud storage!', 'success');
+    } else {
+        showStatus('File not found in cloud storage.', 'error');
+    }
+};
 
 // Listen to contract events
 function listenToEvents() {
@@ -810,4 +1110,6 @@ function showStatus(message, type) {
         }, 5000);
     }
 }
+
+
 
