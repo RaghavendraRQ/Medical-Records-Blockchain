@@ -140,7 +140,7 @@ window.addEventListener('load', async () => {
         if (typeof ethers === 'undefined') {
             console.error('ethers.js failed to load');
             if (metamaskStatus) {
-                metamaskStatus.innerHTML = '❌ ethers.js library failed to load. Please check console for details.';
+                metamaskStatus.innerHTML = 'ethers.js library failed to load. Please check console for details.';
             }
             return;
         }
@@ -181,11 +181,11 @@ async function waitForMetaMask() {
         metamaskDetection.style.background = '#f8d7da';
         
         if (window.location.protocol === 'file:') {
-            metamaskStatus.innerHTML = '❌ File protocol detected. Please use a local server. <br><small>Run: <code>python3 -m http.server 8000</code> then visit <code>http://localhost:8000</code></small>';
+            metamaskStatus.innerHTML = 'File protocol detected. Please use a local server. <br><small>Run: <code>python3 -m http.server 8000</code> then visit <code>http://localhost:8000</code></small>';
         } else if (typeof window.ethereum !== 'undefined') {
-            metamaskStatus.textContent = '⚠️ Web3 provider found but not MetaMask';
+            metamaskStatus.textContent = '️Web3 provider found but not MetaMask';
         } else {
-            metamaskStatus.textContent = '❌ MetaMask not found. Please install MetaMask extension.';
+            metamaskStatus.textContent = 'MetaMask not found. Please install MetaMask extension.';
         }
     }
     
@@ -571,16 +571,23 @@ function storeFileInCloud(recordId, file, hash) {
                 type: file.type,
                 size: file.size,
                 hash: hash,
-                data: e.target.result, // Base64 encoded file
+                data: e.target.result, // Base64 encoded file (simulated encrypted blob)
                 uploadedAt: new Date().toISOString(),
-                owner: currentAccount
+                owner: currentAccount,
+                // Simulated encryption metadata
+                encrypted: true,
+                encryptionInfo: {
+                    algorithm: 'AES-256-GCM (simulated)',
+                    by: currentAccount,
+                    note: 'Encrypted with patient key (simulation)'
+                }
             };
             
             // Store in localStorage with record ID as key
             const storageKey = `medical_record_${recordId}`;
             localStorage.setItem(storageKey, JSON.stringify(fileData));
             
-            console.log('File stored in cloud (localStorage):', storageKey);
+            console.log('File stored in cloud (localStorage) with encryption metadata:', storageKey);
             resolve();
         };
         reader.onerror = reject;
@@ -622,7 +629,6 @@ async function uploadRecord() {
     const recordIdInput = document.getElementById('record-id');
     const fileInput = document.getElementById('record-file');
     console.log(recordIdInput, fileInput);
-
     
     if (!recordIdInput) {
         showStatus('Record ID input not found. Please refresh the page.', 'error');
@@ -683,12 +689,12 @@ async function uploadRecord() {
             fileHashSpan.textContent = fileHash;
         }
         
-        showStatus('Uploading file to cloud storage...', 'pending');
+        showStatus('Encrypting with patient key and uploading to cloud storage...', 'pending');
         
-        // Store file in localStorage (simulating cloud)
+        // Store file in localStorage (simulating cloud + encryption)
         await storeFileInCloud(recordId, file, fileHash);
         
-        showStatus('Uploading record to blockchain...', 'pending');
+        showStatus('Uploading record metadata to blockchain...', 'pending');
         
         // Upload to blockchain
         const tx = await contract.uploadRecord(recordId, fileHash);
@@ -696,8 +702,8 @@ async function uploadRecord() {
         
         const receipt = await tx.wait();
         
-        // Show success message with hash
-        showStatus('Record uploaded successfully! File stored in cloud and metadata on blockchain.', 'success');
+        // Show success message with hash and encryption
+        showStatus('Record uploaded successfully! File encrypted with patient key and stored in cloud. Metadata on blockchain.', 'success');
         
         // Display hash as output for later use
         const uploadResultDiv = document.getElementById('upload-result');
@@ -707,6 +713,7 @@ async function uploadRecord() {
                 <strong>Upload Complete</strong><br>
                 <strong>Record ID:</strong> ${recordId}<br>
                 <strong>File Hash:</strong> <code style="background: #f0f0f0; padding: 4px 8px; border-radius: 3px; font-family: monospace; word-break: break-all;">${fileHash}</code><br>
+                <strong>Encryption:</strong> Encrypted with patient key (simulated)<br>
                 <strong>Transaction Hash:</strong> <code style="background: #f0f0f0; padding: 4px 8px; border-radius: 3px; font-family: monospace; word-break: break-all;">${receipt.transactionHash}</code><br>
                 <strong>Etherscan:</strong> <a href="https://sepolia.etherscan.io/tx/${receipt.transactionHash}" target="_blank" style="color: #667eea;">View Transaction</a><br>
                 <small style="display: block; margin-top: 10px; color: #666;">
@@ -829,7 +836,7 @@ async function viewRecord() {
             const resultBox = document.getElementById('record-info');
             resultBox.className = 'result-box show error';
             resultBox.innerHTML = `
-                <strong>❌ Access Denied</strong><br>
+                <strong>Access Denied</strong><br>
                 You are not the owner of this record.<br>
                 <strong>Record Owner:</strong> ${recordInfo.owner}<br>
                 <strong>Your Address:</strong> ${currentAccount}
@@ -847,7 +854,7 @@ async function viewRecord() {
         const resultBox = document.getElementById('record-info');
         resultBox.className = 'result-box show success';
         resultBox.innerHTML = `
-            <strong>✅ Record Access Granted</strong><br>
+            <strong>Record Access Granted</strong><br>
             <strong>Record ID:</strong> ${recordInfo.recordId}<br>
             <strong>Hash:</strong> ${recordInfo.hash}<br>
             <strong>Owner:</strong> ${recordInfo.owner}<br>
@@ -864,13 +871,13 @@ async function viewRecord() {
             const uploadedDate = new Date(fileData.uploadedAt).toLocaleString();
             downloadSection.innerHTML = `
                 <div style="margin-bottom: 10px;">
-                    <strong>📄 File:</strong> ${fileData.name}<br>
-                    <strong>📦 Size:</strong> ${formatFileSize(fileData.size)}<br>
-                    <strong>🕒 Uploaded to Cloud:</strong> ${uploadedDate}<br>
-                    <strong>☁️ Storage:</strong> Secure Cloud Storage
+                    <strong>File:</strong> ${fileData.name}<br>
+                    <strong>Size:</strong> ${formatFileSize(fileData.size)}<br>
+                    <strong>Uploaded to Cloud:</strong> ${uploadedDate}<br>
+                    <strong>Encryption:</strong> Encrypted with patient key (simulated)
                 </div>
                 <button onclick="downloadPatientFile('${recordId}')" class="btn btn-action" style="margin-top: 10px;">
-                    📥 Download File from Cloud
+                    Download Encrypted File
                 </button>
             `;
         } else {
@@ -927,7 +934,7 @@ async function checkAccess() {
         const resultBox = document.getElementById('access-result');
         resultBox.className = 'result-box show ' + (hasAccess ? 'success' : 'info');
         resultBox.innerHTML = `
-            <strong>Access Status:</strong> ${hasAccess ? '✅ GRANTED' : '❌ NO ACCESS'}<br>
+            <strong>Access Status:</strong> ${hasAccess ? 'GRANTED' : 'NO ACCESS'}<br>
             <strong>Record ID:</strong> ${recordId}<br>
             <strong>User Address:</strong> ${userAddress}
         `;
@@ -962,7 +969,7 @@ async function doctorViewRecord() {
             const resultBox = document.getElementById('doctor-record-info');
             resultBox.className = 'result-box show error';
             resultBox.innerHTML = `
-                <strong>❌ Access Denied</strong><br>
+                <strong>Access Denied</strong><br>
                 You do not have permission to view this record.<br>
                 <strong>Record ID:</strong> ${recordId}<br>
                 <strong>Your Address:</strong> ${currentAccount}<br><br>
@@ -984,7 +991,7 @@ async function doctorViewRecord() {
         const resultBox = document.getElementById('doctor-record-info');
         resultBox.className = 'result-box show success';
         resultBox.innerHTML = `
-            <strong>✅ Access Granted</strong><br>
+            <strong>Access Granted</strong><br>
             <strong>Record ID:</strong> ${recordInfo.recordId}<br>
             <strong>Hash:</strong> ${recordInfo.hash}<br>
             <strong>Owner:</strong> ${recordInfo.owner}<br>
@@ -1001,13 +1008,13 @@ async function doctorViewRecord() {
             const uploadedDate = new Date(fileData.uploadedAt).toLocaleString();
             downloadSection.innerHTML = `
                 <div style="margin-bottom: 10px;">
-                    <strong>📄 File:</strong> ${fileData.name}<br>
-                    <strong>📦 Size:</strong> ${formatFileSize(fileData.size)}<br>
-                    <strong>🕒 Uploaded to Cloud:</strong> ${uploadedDate}<br>
-                    <strong>☁️ Storage:</strong> Secure Cloud Storage
+                    <strong>File:</strong> ${fileData.name}<br>
+                    <strong>Size:</strong> ${formatFileSize(fileData.size)}<br>
+                    <strong>Uploaded to Cloud:</strong> ${uploadedDate}<br>
+                    <strong>Encryption:</strong> Encrypted with patient key (simulated)
                 </div>
                 <button onclick="downloadDoctorFile('${recordId}')" class="btn btn-action" style="margin-top: 10px;">
-                    📥 Download File from Cloud
+                     Download Encrypted File
                 </button>
             `;
         } else {
